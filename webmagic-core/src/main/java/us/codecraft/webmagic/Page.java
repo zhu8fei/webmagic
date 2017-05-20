@@ -4,10 +4,12 @@ import org.apache.commons.lang3.StringUtils;
 import us.codecraft.webmagic.selector.Html;
 import us.codecraft.webmagic.selector.Json;
 import us.codecraft.webmagic.selector.Selectable;
+import us.codecraft.webmagic.utils.HttpConstant;
 import us.codecraft.webmagic.utils.UrlUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Object storing extracted result and urls to fetch.<br>
@@ -38,13 +40,21 @@ public class Page {
 
     private Selectable url;
 
-    private int statusCode;
+    private Map<String,List<String>> headers;
 
-    private boolean needCycleRetry;
+    private int statusCode = HttpConstant.StatusCode.CODE_200;
+
+    private boolean downloadSuccess = true;
 
     private List<Request> targetRequests = new ArrayList<Request>();
-
+    
     public Page() {
+    }
+
+    public static Page fail(){
+        Page page = new Page();
+        page.setDownloadSuccess(false);
+        return page;
     }
 
     public Page setSkip(boolean skip) {
@@ -70,7 +80,7 @@ public class Page {
      */
     public Html getHtml() {
         if (html == null) {
-            html = new Html(UrlUtils.fixAllRelativeHrefs(rawText, request.getUrl()));
+            html = new Html(rawText, request.getUrl());
         }
         return html;
     }
@@ -107,14 +117,12 @@ public class Page {
      * @param requests requests
      */
     public void addTargetRequests(List<String> requests) {
-        synchronized (targetRequests) {
-            for (String s : requests) {
-                if (StringUtils.isBlank(s) || s.equals("#") || s.startsWith("javascript:")) {
-                    continue;
-                }
-                s = UrlUtils.canonicalizeUrl(s, url.toString());
-                targetRequests.add(new Request(s));
+        for (String s : requests) {
+            if (StringUtils.isBlank(s) || s.equals("#") || s.startsWith("javascript:")) {
+                continue;
             }
+            s = UrlUtils.canonicalizeUrl(s, url.toString());
+            targetRequests.add(new Request(s));
         }
     }
 
@@ -125,14 +133,12 @@ public class Page {
      * @param priority priority
      */
     public void addTargetRequests(List<String> requests, long priority) {
-        synchronized (targetRequests) {
-            for (String s : requests) {
-                if (StringUtils.isBlank(s) || s.equals("#") || s.startsWith("javascript:")) {
-                    continue;
-                }
-                s = UrlUtils.canonicalizeUrl(s, url.toString());
-                targetRequests.add(new Request(s).setPriority(priority));
+        for (String s : requests) {
+            if (StringUtils.isBlank(s) || s.equals("#") || s.startsWith("javascript:")) {
+                continue;
             }
+            s = UrlUtils.canonicalizeUrl(s, url.toString());
+            targetRequests.add(new Request(s).setPriority(priority));
         }
     }
 
@@ -145,10 +151,8 @@ public class Page {
         if (StringUtils.isBlank(requestString) || requestString.equals("#")) {
             return;
         }
-        synchronized (targetRequests) {
-            requestString = UrlUtils.canonicalizeUrl(requestString, url.toString());
-            targetRequests.add(new Request(requestString));
-        }
+        requestString = UrlUtils.canonicalizeUrl(requestString, url.toString());
+        targetRequests.add(new Request(requestString));
     }
 
     /**
@@ -157,9 +161,7 @@ public class Page {
      * @param request request
      */
     public void addTargetRequest(Request request) {
-        synchronized (targetRequests) {
-            targetRequests.add(request);
-        }
+        targetRequests.add(request);
     }
 
     /**
@@ -182,14 +184,6 @@ public class Page {
      */
     public Request getRequest() {
         return request;
-    }
-
-    public boolean isNeedCycleRetry() {
-        return needCycleRetry;
-    }
-
-    public void setNeedCycleRetry(boolean needCycleRetry) {
-        this.needCycleRetry = needCycleRetry;
     }
 
     public void setRequest(Request request) {
@@ -218,14 +212,34 @@ public class Page {
         return this;
     }
 
+    public Map<String, List<String>> getHeaders() {
+        return headers;
+    }
+
+    public void setHeaders(Map<String, List<String>> headers) {
+        this.headers = headers;
+    }
+
+    public boolean isDownloadSuccess() {
+        return downloadSuccess;
+    }
+
+    public void setDownloadSuccess(boolean downloadSuccess) {
+        this.downloadSuccess = downloadSuccess;
+    }
+
     @Override
     public String toString() {
         return "Page{" +
                 "request=" + request +
                 ", resultItems=" + resultItems +
+                ", html=" + html +
+                ", json=" + json +
                 ", rawText='" + rawText + '\'' +
                 ", url=" + url +
+                ", headers=" + headers +
                 ", statusCode=" + statusCode +
+                ", success=" + downloadSuccess +
                 ", targetRequests=" + targetRequests +
                 '}';
     }
